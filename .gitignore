@@ -1,0 +1,10 @@
+# Build output
+Android Mirroring.app/
+
+# macOS
+.DS_Store
+
+# Local tooling (AI agent skills, editor state)
+.agents/
+.claude/
+skills-lock.json
