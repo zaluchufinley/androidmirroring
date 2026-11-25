@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; media-src 'none'; connect-src 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Android Mirroring</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="root" data-mode="connect">
+
+  <!-- Connect screen: laid out at a fixed 340 x 640 design size and scaled to the window, so small and large windows look alike. -->
+  <section id="connect" class="screen">
+    <div id="scaler"><div id="scaled"><div id="scroll">
+
+      <div class="page" id="mainPage">
+        <div class="hero" id="hero"><span class="glow"></span><span data-icon="hero"></span></div>
+        <h1>Connect Your Android</h1>
+        <p class="subtitle">Control your phone from this PC.</p>
+
+        <h2 class="section">Phones</h2>
+        <div class="card" id="devices"></div>
+
+        <h2 class="section">Connection</h2>
+        <div class="card">
+          <label class="row field">
+            <span class="label">Address</span>
+            <input id="address" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="192.168.0.101:42799" aria-label="Address">
+            <button class="clear" type="button" tabindex="-1" aria-label="Clear Address" data-icon="clear" hidden></button>
+          </label>
+          <div class="row sound">
+            <div class="texts"><span class="label">Sound</span><span class="detail" id="soundDetail">Plays on your phone</span></div>
+            <div class="seg" id="soundSeg" role="radiogroup" aria-label="Play sound on">
+              <button type="button" role="radio" data-value="phone" aria-checked="true">Phone</button>
+              <button type="button" role="radio" data-value="pc" aria-checked="false">PC</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn primary" id="connectBtn" type="button"><span class="spinner" hidden></span><span class="text">Connect</span></button>
+        <button class="link" id="cancelBtn" type="button" hidden>Cancel</button>
+        <div class="banner" id="banner" role="status" hidden><span class="ico"></span><span class="msg"></span></div>
+        <button class="link pair-toggle" id="pairToggle" type="button"><span>Pair a New Phone</span><span data-icon="chevronRight"></span></button>
+      </div>
+
+      <div class="page" id="pairPage" hidden>
+        <button class="link back" id="backBtn" type="button" aria-label="Back to Connect"><span data-icon="chevronLeft"></span><span>Connect</span></button>
+        <h1>Pair a New Phone</h1>
+        <p class="subtitle">Pair once with a code. After that, Connect works without it.</p>
+        <div class="card">
+          <label class="row field">
+            <span class="label">Address</span>
+            <input id="pairAddress" type="text" inputmode="url" spellcheck="false" autocomplete="off" placeholder="192.168.0.101:37123" aria-label="Address">
+            <button class="clear" type="button" tabindex="-1" aria-label="Clear Address" data-icon="clear" hidden></button>
+          </label>
+          <label class="row field">
+            <span class="label">Code</span>
+            <input id="pairCode" type="text" inputmode="numeric" maxlength="6" spellcheck="false" autocomplete="off" placeholder="6-digit pairing code" aria-label="Code">
+            <button class="clear" type="button" tabindex="-1" aria-label="Clear Code" data-icon="clear" hidden></button>
+          </label>
+        </div>
+        <button class="btn primary" id="pairBtn" type="button"><span class="spinner" hidden></span><span class="text">Pair</span></button>
+        <div class="banner" id="pairBanner" role="status" hidden><span class="ico"></span><span class="msg"></span></div>
+        <p class="help">On the phone: Developer options › Wireless debugging › Pair device with pairing code. Enter the address and 6-digit code it shows.</p>
+      </div>
+
+    </div></div></div>
+  </section>
+
+  <!-- Mirror screen -->
+  <section id="mirror" class="screen" hidden>
+    <canvas id="video" width="1080" height="2400"></canvas>
+  </section>
+
+  <input id="kbd" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Keyboard input for the phone" tabindex="-1">
+
+  <!-- Floating controls: glass over the content -->
+  <header id="bar">
+    <div class="capsule" id="actions" hidden>
+      <button type="button" class="ib" data-act="home" title="Home Screen  Ctrl+1" aria-label="Home Screen" data-icon="home"></button>
+      <button type="button" class="ib" data-act="switcher" title="App Switcher  Ctrl+2" aria-label="App Switcher" data-icon="switcher"></button>
+      <button type="button" class="ib" data-act="notifications" title="Notifications  Ctrl+3" aria-label="Notifications" data-icon="bell"></button>
+      <button type="button" class="ib" id="moreBtn" title="Sound, Keep on Top, Disconnect" aria-label="More" aria-haspopup="menu" data-icon="more"></button>
+    </div>
+    <div class="spacer"></div>
+    <div class="capsule" id="winctl">
+      <button type="button" class="ib" data-act="minimize" title="Minimize" aria-label="Minimize" data-icon="minimize"></button>
+      <button type="button" class="ib" data-act="toggleZoom" title="Fit to Screen  Ctrl+9" aria-label="Fit to Screen" data-icon="fit"></button>
+      <button type="button" class="ib close" data-act="close" title="Close" aria-label="Close" data-icon="close"></button>
+    </div>
+  </header>
+
+  <div id="menu" role="menu" hidden>
+    <div class="heading">Sound</div>
+    <button type="button" role="menuitemradio" data-menu="phone"><span class="tick" data-icon="check"></span><span class="name">Play on Phone</span></button>
+    <button type="button" role="menuitemradio" data-menu="pc"><span class="tick" data-icon="check"></span><span class="name">Play on PC</span></button>
+    <hr>
+    <button type="button" role="menuitemcheckbox" data-menu="phoneScreenOff"><span class="tick" data-icon="check"></span><span class="name">Phone Screen Off</span><span class="keys">Ctrl+Alt+L</span></button>
+    <button type="button" role="menuitemcheckbox" data-menu="keepOnTop"><span class="tick" data-icon="check"></span><span class="name">Keep on Top</span><span class="keys">Ctrl+Alt+T</span></button>
+    <hr>
+    <button type="button" role="menuitem" data-menu="disconnect"><span class="tick"></span><span class="name">Disconnect</span><span class="keys">Ctrl+D</span></button>
+  </div>
+
+  <div id="dropOverlay" aria-hidden="true">
+    <div class="ring"></div>
+    <div class="card-glass"><span data-icon="dropDoc"></span><strong>Drop to Send to Phone</strong><span>Apps (.apk) are installed.<br>Other files go to Downloads.</span></div>
+  </div>
+
+  <div id="toast" role="status" aria-live="polite"><div class="pill"><span class="spinner" hidden></span><span class="ico"></span><span class="msg"></span></div></div>
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

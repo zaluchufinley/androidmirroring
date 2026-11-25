@@ -37,6 +37,12 @@ Android Mirroring is a pure AppKit front end for [scrcpy](https://github.com/Gen
 | ⌘D | Disconnect |
 | ⌥-drag on the phone screen | Move the window |
 
+## Windows
+
+There is also a Windows version in [`windows/`](windows/). It is a separate app (Electron and WebCodecs) that speaks the same scrcpy protocol and has the same features and look. It bundles `adb` and the scrcpy server, so there is nothing to install. The macOS app stays native and dependency-free.
+
+Installers for Windows (x64 and ARM64) are built by GitHub Actions: open the latest **Windows build** run and download the artifact. See [windows/README.md](windows/README.md) for building, testing and trying it in a VM.
+
 ## Requirements
 
 - macOS 14 or later

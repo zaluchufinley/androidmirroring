@@ -1,0 +1,58 @@
+{
+  "name": "android-mirroring",
+  "productName": "Android Mirroring",
+  "version": "1.0.0",
+  "description": "An iPhone-Mirroring-style front end for scrcpy, for Windows.",
+  "type": "module",
+  "main": "src/main/main.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "start": "electron .",
+    "fetch-tools": "node scripts/fetch-scrcpy.js",
+    "test": "node --test test/*.test.js",
+    "dist": "npm run fetch-tools && electron-builder --win nsis --x64 --publish never",
+    "dist:arm64": "npm run fetch-tools -- --arch arm64 && electron-builder --win nsis --arm64 --publish never",
+    "test:e2e": "electron test/e2e/run.mjs"
+  },
+  "devDependencies": {
+    "electron": "^45.5.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "local.android-mirroring",
+    "productName": "Android Mirroring",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/bin",
+        "to": "bin",
+        "filter": [
+          "**/*",
+          "!.gitkeep"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "artifactName": "Android-Mirroring-Setup-${version}-${arch}.${ext}"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
