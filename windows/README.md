@@ -15,8 +15,9 @@ is nothing else to install.
 
 ## Get the installer
 
-Push to GitHub: the **Windows build** workflow (`.github/workflows/windows.yml`) builds `x64` and `arm64` installers on a
-Windows runner. Download them from the run's **Artifacts**.
+Download it from the repository's **Releases** page: `Android-Mirroring-Setup-<version>-x64.exe` for most PCs, `-arm64.exe`
+for Windows on ARM. Releases are published by the **Build** workflow (`.github/workflows/build.yml`) whenever a tag like
+`v1.0.0` is pushed. Every other push builds the same installers and keeps them as run **Artifacts**.
 
 To build locally on a Windows PC:
 

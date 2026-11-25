@@ -1,0 +1,116 @@
+name: Build
+
+# Builds the Windows installers (x64, ARM64) and the macOS disk image (Apple Silicon + Intel).
+#   - every push and pull request: builds and runs the tests; the files are kept as run artifacts
+#   - pushing a tag like v1.0.0:   also publishes them as a GitHub Release anyone can download
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows installer (${{ matrix.arch }})
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, arm64]
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Version from the tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: npm pkg set version="${GITHUB_REF_NAME#v}"
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build the installer
+        run: npm run ${{ matrix.arch == 'arm64' && 'dist:arm64' || 'dist' }}
+
+      - name: Show what was built
+        shell: bash
+        run: ls -la dist/*.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-mirroring-windows-${{ matrix.arch }}
+          path: windows/dist/*.exe
+          if-no-files-found: error
+
+  macos:
+    name: macOS disk image (universal)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the app (Apple Silicon + Intel)
+        run: UNIVERSAL=1 ./build.sh
+
+      - name: Check it is universal and signed
+        run: |
+          lipo -info "Android Mirroring.app/Contents/MacOS/AndroidMirroring"
+          codesign --verify --deep --strict "Android Mirroring.app"
+
+      - name: Make the disk image
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then VERSION="${GITHUB_REF_NAME#v}"; else VERSION="dev-${GITHUB_SHA::7}"; fi
+          ./tools/make_dmg.sh "$VERSION"
+          ls -la dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-mirroring-macos
+          path: dist/*.dmg
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: release
+        run: sha256sum * > SHA256SUMS.txt && cat SHA256SUMS.txt
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          NOTES="**Windows:** \`Android-Mirroring-Setup-*-x64.exe\` for most PCs, \`-arm64.exe\` for Windows on ARM. Windows may say \"unknown publisher\" (the installer is not code-signed): choose *More info*, then *Run anyway*.
+
+          **macOS:** \`Android-Mirroring-*-macOS.dmg\` (Apple Silicon and Intel). Drag the app to Applications. The app is not notarized, so the first time use right-click, then *Open* (or run \`xattr -dr com.apple.quarantine \"/Applications/Android Mirroring.app\"\`). The Mac app needs \`brew install scrcpy\` and \`brew install --cask android-platform-tools\`; the Windows installer already includes everything.
+          "
+          gh release create "$GITHUB_REF_NAME" release/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Android Mirroring ${GITHUB_REF_NAME#v}" \
+            --notes "$NOTES" \
+            --generate-notes

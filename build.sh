@@ -7,9 +7,23 @@ APP="Android Mirroring.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 
-swiftc -O -swift-version 5 \
-  -o "$APP/Contents/MacOS/AndroidMirroring" Sources/main.swift Sources/Core.swift Sources/UI.swift Sources/Connect.swift Sources/Transfer.swift \
-  -framework AppKit -framework AVFoundation -framework CoreMedia 2>&1
+SOURCES=(Sources/main.swift Sources/Core.swift Sources/UI.swift Sources/Connect.swift Sources/Transfer.swift)
+FRAMEWORKS=(-framework AppKit -framework AVFoundation -framework CoreMedia)
+
+if [ "${UNIVERSAL:-0}" = "1" ]; then
+  # One app for Apple Silicon and Intel Macs (used for the downloadable release). Plain ./build.sh builds for this Mac only.
+  TMP="$(mktemp -d)"
+  for ARCH in arm64 x86_64; do
+    swiftc -O -swift-version 5 -target "$ARCH-apple-macos14.0" \
+      -o "$TMP/$ARCH" "${SOURCES[@]}" "${FRAMEWORKS[@]}" 2>&1
+  done
+  lipo -create -output "$APP/Contents/MacOS/AndroidMirroring" "$TMP/arm64" "$TMP/x86_64"
+  rm -rf "$TMP"
+else
+  swiftc -O -swift-version 5 \
+    -o "$APP/Contents/MacOS/AndroidMirroring" "${SOURCES[@]}" \
+    "${FRAMEWORKS[@]}" 2>&1
+fi
 test -x "$APP/Contents/MacOS/AndroidMirroring"
 
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
