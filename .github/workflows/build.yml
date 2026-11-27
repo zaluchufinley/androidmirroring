@@ -144,7 +144,7 @@ jobs:
 
           **Linux (x64):** \`Android-Mirroring-*-x86_64.AppImage\` for Arch and Bazzite (other distros may work, but Ubuntu 23.10 and newer blocks Electron's sandbox by default): \`chmod +x\` it and run it. Arch and Arch-based distros can instead install \`Android-Mirroring-*-x64.pacman\` with \`sudo pacman -U\`. adb and the scrcpy server are bundled.
 
-          **macOS:** \`Android-Mirroring-*-macOS.dmg\` (Apple Silicon and Intel). Drag the app to Applications. The app is not notarized, so the first time use right-click, then *Open* (or run \`xattr -dr com.apple.quarantine \"/Applications/Android Mirroring.app\"\`). The Mac app needs \`brew install scrcpy\` and \`brew install --cask android-platform-tools\`; the Windows installer already includes everything.
+          **macOS:** \`Android-Mirroring-*-macOS.dmg\` (Apple Silicon and Intel). Drag the app to Applications. The app is not notarized, so the first time use right-click, then *Open* (or run \`xattr -dr com.apple.quarantine \"/Applications/Android Mirroring.app\"\`). The Mac app needs \`brew install scrcpy\` and \`brew install --cask android-platform-tools\`; the Windows and Linux packages already include everything.
           "
           gh release create "$GITHUB_REF_NAME" release/* \
             --repo "$GITHUB_REPOSITORY" \
