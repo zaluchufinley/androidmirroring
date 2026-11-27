@@ -63,12 +63,13 @@ jobs:
         run: npm test
 
       # Starts the real app against a fake phone, so a broken Electron setup on Linux turns CI red.
-      # --no-sandbox only because the runner's node_modules copy of Electron has no setuid helper.
+      # --no-sandbox only because the runner's node_modules copy of Electron has no setuid helper;
+      # --disable-gpu because the runner has no GPU; openbox because "keep on top" needs a window manager.
       - name: End-to-end test
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update && sudo apt-get install -y ffmpeg xvfb
-          xvfb-run -a npx electron --no-sandbox test/e2e/run.mjs
+          sudo apt-get update && sudo apt-get install -y ffmpeg xvfb openbox
+          xvfb-run -a sh -c 'openbox & sleep 2; exec npx electron --no-sandbox --disable-gpu test/e2e/run.mjs'
 
       - name: Build the installer / packages
         run: npm run ${{ matrix.script }}
