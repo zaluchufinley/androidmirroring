@@ -191,7 +191,8 @@ async function main() {
 
   // ---- connect screen
   let b = bounds();
-  check('window opens phone-shaped at 340 wide', b.width === 340 && b.height === 756, `${b.width}x${b.height}`);
+  // ±1 px on the height: a Linux window manager rounds the aspect-ratio constraint (755 instead of 756)
+  check('window opens phone-shaped at 340 wide', b.width === 340 && Math.abs(b.height - 756) <= 1, `${b.width}x${b.height}`);
   check('window stays on top by default', win.isAlwaysOnTop() === true);
   await until(async () => (await js('document.querySelectorAll(".device").length')) === 2, 6000, 'device polling');
   check('devices from adb are listed (ready + unauthorized)', true);
