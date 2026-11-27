@@ -71,6 +71,10 @@ jobs:
           sudo apt-get update && sudo apt-get install -y ffmpeg xvfb openbox
           xvfb-run -a sh -c 'openbox & sleep 2; exec npx electron --no-sandbox --disable-gpu test/e2e/run.mjs'
 
+      - name: Linux packaging tools (fpm needs bsdtar for the pacman package)
+        if: runner.os == 'Linux'
+        run: sudo apt-get install -y libarchive-tools
+
       - name: Build the installer / packages
         run: npm run ${{ matrix.script }}
 

@@ -59,6 +59,9 @@
       "synopsis": "Mirror and control your Android phone",
       "artifactName": "Android-Mirroring-${version}-${arch}.${ext}"
     },
+    "pacman": {
+      "depends": ["gtk3", "libnotify", "nss", "libxss", "libxtst", "xdg-utils", "at-spi2-core", "util-linux-libs", "libsecret"]
+    },
     "nsis": {
       "oneClick": true,
       "perMachine": false,
