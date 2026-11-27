@@ -10,6 +10,27 @@ function reason(output) {
   return line.length > 110 ? line.slice(0, 110) + '…' : line;
 }
 
+/** "a.pdf" -> "a (1).pdf", "notes" -> "notes (2)": the name to try when the phone already has the file. */
+export function numberedName(name, n) {
+  if (n === 0) return name;
+  const ext = path.extname(name);
+  return `${name.slice(0, name.length - ext.length)} (${n})${ext}`;
+}
+
+// The phone's shell reads a file name, so quote it: '...' with each ' written as '\''
+const quote = (s) => `'${s.replaceAll("'", "'\\''")}'`;
+
+/** The first name in Downloads the phone does not have yet, so a drop never overwrites an existing file. */
+async function freeName(adb, serial, name) {
+  for (let n = 0; n < 100; n++) {
+    const candidate = numberedName(name, n);
+    const r = await run(adb, ['-s', serial, 'shell', `test -e ${quote('/sdcard/Download/' + candidate)}`], { timeout: 10_000 });
+    if (r.status === 1) return candidate;  // exit 1 = "no such file"; anything else (adb trouble) falls through to a plain push
+    if (r.status !== 0) break;
+  }
+  return name;
+}
+
 /** `progress(text)` is called before each file. Resolves with { sentFiles, installedApps, failures }. */
 export async function sendFiles(paths, serial, progress) {
   const r = { sentFiles: 0, installedApps: 0, failures: [] };
@@ -23,7 +44,7 @@ export async function sendFiles(paths, serial, progress) {
       if (out.status === 0 && out.out.includes('Success')) r.installedApps++;
       else r.failures.push(`${name}: ${reason(out.out)}`);
     } else {
-      const out = await run(adb, ['-s', serial, 'push', file, '/sdcard/Download/']);
+      const out = await run(adb, ['-s', serial, 'push', file, '/sdcard/Download/' + await freeName(adb, serial, name)]);
       if (out.status === 0) r.sentFiles++;
       else r.failures.push(`${name}: ${reason(out.out)}`);
     }

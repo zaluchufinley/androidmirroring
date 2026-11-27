@@ -2,9 +2,11 @@
   "name": "android-mirroring",
   "productName": "Android Mirroring",
   "version": "1.0.0",
-  "description": "An iPhone-Mirroring-style front end for scrcpy, for Windows.",
+  "description": "An iPhone-Mirroring-style front end for scrcpy, for Windows and Linux.",
   "type": "module",
   "main": "src/main/main.js",
+  "desktopName": "android-mirroring.desktop",
+  "homepage": "https://github.com/zaluchufinley/androidmirroring",
   "private": true,
   "license": "UNLICENSED",
   "engines": {
@@ -13,6 +15,7 @@
   "scripts": {
     "start": "electron .",
     "fetch-tools": "node scripts/fetch-scrcpy.js",
+    "dist:linux": "npm run fetch-tools -- --os linux && electron-builder --linux AppImage pacman --x64 --publish never",
     "test": "node --test test/*.test.js",
     "dist": "npm run fetch-tools && electron-builder --win nsis --x64 --publish never",
     "dist:arm64": "npm run fetch-tools -- --arch arm64 && electron-builder --win nsis --arm64 --publish never",
@@ -31,6 +34,7 @@
     },
     "files": [
       "src/**/*",
+      "build/icon.png",
       "package.json"
     ],
     "extraResources": [
@@ -46,6 +50,14 @@
     "win": {
       "icon": "build/icon.png",
       "artifactName": "Android-Mirroring-Setup-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "syncDesktopName": true,
+      "maintainer": "Android Mirroring",
+      "synopsis": "Mirror and control your Android phone",
+      "artifactName": "Android-Mirroring-${version}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": true,

@@ -1,6 +1,6 @@
 name: Build
 
-# Builds the Windows installers (x64, ARM64) and the macOS disk image (Apple Silicon + Intel).
+# Builds the Windows installers (x64, ARM64), the Linux AppImage + Arch package (x64) and the macOS disk image (Apple Silicon + Intel).
 #   - every push and pull request: builds and runs the tests; the files are kept as run artifacts
 #   - pushing a tag like v1.0.0:   also publishes them as a GitHub Release anyone can download
 
@@ -15,15 +15,33 @@ permissions:
   contents: read
 
 jobs:
-  windows:
-    name: Windows installer (${{ matrix.arch }})
-    runs-on: windows-latest
+  desktop:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        arch: [x64, arm64]
+        include:
+          - name: Windows installer (x64)
+            os: windows-latest
+            script: dist
+            artifact: android-mirroring-windows-x64
+            files: windows/dist/*.exe
+          - name: Windows installer (arm64)
+            os: windows-latest
+            script: dist:arm64
+            artifact: android-mirroring-windows-arm64
+            files: windows/dist/*.exe
+          - name: Linux AppImage + Arch package (x64)
+            os: ubuntu-latest
+            script: dist:linux
+            artifact: android-mirroring-linux-x64
+            files: |
+              windows/dist/*.AppImage
+              windows/dist/*.pacman
     defaults:
       run:
+        shell: bash
         working-directory: windows
     steps:
       - uses: actions/checkout@v4
@@ -39,23 +57,29 @@ jobs:
 
       - name: Version from the tag
         if: startsWith(github.ref, 'refs/tags/v')
-        shell: bash
         run: npm pkg set version="${GITHUB_REF_NAME#v}"
 
       - name: Unit tests
         run: npm test
 
-      - name: Build the installer
-        run: npm run ${{ matrix.arch == 'arm64' && 'dist:arm64' || 'dist' }}
+      # Starts the real app against a fake phone, so a broken Electron setup on Linux turns CI red.
+      # --no-sandbox only because the runner's node_modules copy of Electron has no setuid helper.
+      - name: End-to-end test
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg xvfb
+          xvfb-run -a npx electron --no-sandbox test/e2e/run.mjs
+
+      - name: Build the installer / packages
+        run: npm run ${{ matrix.script }}
 
       - name: Show what was built
-        shell: bash
-        run: ls -la dist/*.exe
+        run: ls -la dist
 
       - uses: actions/upload-artifact@v4
         with:
-          name: android-mirroring-windows-${{ matrix.arch }}
-          path: windows/dist/*.exe
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.files }}
           if-no-files-found: error
 
   macos:
@@ -63,6 +87,12 @@ jobs:
     runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
+
+      - name: Swift tests (control messages and file naming against the same golden bytes as the JS tests)
+        run: |
+          swiftc -o "$RUNNER_TEMP/swifttests" Sources/Core.swift Sources/Transfer.swift tests/swift/main.swift \
+            -framework AppKit -framework AVFoundation -framework CoreMedia
+          "$RUNNER_TEMP/swifttests"
 
       - name: Build the app (Apple Silicon + Intel)
         run: UNIVERSAL=1 ./build.sh
@@ -87,7 +117,7 @@ jobs:
   release:
     name: Publish release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [windows, macos]
+    needs: [desktop, macos]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -106,6 +136,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           NOTES="**Windows:** \`Android-Mirroring-Setup-*-x64.exe\` for most PCs, \`-arm64.exe\` for Windows on ARM. Windows may say \"unknown publisher\" (the installer is not code-signed): choose *More info*, then *Run anyway*.
+
+          **Linux (x64):** \`Android-Mirroring-*-x86_64.AppImage\` for Arch and Bazzite (other distros may work, but Ubuntu 23.10 and newer blocks Electron's sandbox by default): \`chmod +x\` it and run it. Arch and Arch-based distros can instead install \`Android-Mirroring-*-x64.pacman\` with \`sudo pacman -U\`. adb and the scrcpy server are bundled.
 
           **macOS:** \`Android-Mirroring-*-macOS.dmg\` (Apple Silicon and Intel). Drag the app to Applications. The app is not notarized, so the first time use right-click, then *Open* (or run \`xattr -dr com.apple.quarantine \"/Applications/Android Mirroring.app\"\`). The Mac app needs \`brew install scrcpy\` and \`brew install --cask android-platform-tools\`; the Windows installer already includes everything.
           "

@@ -1,7 +1,7 @@
-// Downloads the pinned scrcpy release for Windows and unpacks the few files the app needs (adb and the server jar)
-// into resources/bin, which the installer ships. The download is checked against the release's SHA256SUMS.txt.
+// Downloads the pinned scrcpy release for Windows (or Linux x64) and unpacks the few files the app needs (adb and the server jar)
+// into resources/bin, which the installer ships. The download is checked against the SHA-256 pinned in this file.
 //
-//   node scripts/fetch-scrcpy.js [--arch x64|arm64] [--force]
+//   node scripts/fetch-scrcpy.js [--os win|linux] [--arch x64|arm64] [--force]   (linux: x64 only, scrcpy ships no ARM build)
 //
 // The version must match the server jar it ships with, so it is written to resources/bin/VERSION.
 
@@ -13,7 +13,18 @@ import { fileURLToPath } from 'node:url';
 
 export const SCRCPY_VERSION = '5.0.1';
 
-const NEEDED = ['adb.exe', 'AdbWinApi.dll', 'AdbWinUsbApi.dll', 'scrcpy-server', 'LICENSE.txt'];
+// SHA-256 of each release archive, pinned here (not read from the release itself, which an attacker who replaces an
+// archive could replace too). Update these together with SCRCPY_VERSION: `shasum -a 256 <downloaded archive>`.
+const SHA256 = {
+  'scrcpy-win64-v5.0.1.zip': 'b12a2c4ee8be317422451fc7dcf8ee20a71b5ea7ef9ad73ddd825a25316227a5',
+  'scrcpy-winarm64-v5.0.1.zip': '16c3fc2068df64946f670e3504b4752073ebae47a416a45b46e79a5ab19c689b',
+  'scrcpy-linux-x86_64-v5.0.1.tar.gz': '9f969d30cc574816077edecda65719c1c70b0aee1df1ba5fa00779ac07b8fd6e',
+};
+
+const NEEDED = {
+  win: ['adb.exe', 'AdbWinApi.dll', 'AdbWinUsbApi.dll', 'scrcpy-server', 'LICENSE.txt'],
+  linux: ['adb', 'scrcpy-server', 'LICENSE'],
+};
 
 /** Minimal zip reader (stored + deflate, no zip64): enough for the scrcpy release archive. */
 export function readZip(buf) {
@@ -43,6 +54,20 @@ export function readZip(buf) {
   return files;
 }
 
+/** Minimal tar reader (ustar, regular files): enough for the scrcpy Linux archive. Returns name -> content getter. */
+export function readTar(buf) {
+  const files = new Map();
+  for (let p = 0; p + 512 <= buf.length && buf[p] !== 0; ) {
+    const name = buf.toString('utf8', p, p + 100).replace(/\0.*$/s, '');
+    const size = parseInt(buf.toString('ascii', p + 124, p + 136).replace(/\0.*$/s, '').trim() || '0', 8);
+    const type = String.fromCharCode(buf[p + 156]);
+    const data = buf.subarray(p + 512, p + 512 + size);
+    if (type === '0' || type === '\0') files.set(name, () => Buffer.from(data));
+    p += 512 + Math.ceil(size / 512) * 512;
+  }
+  return files;
+}
+
 async function download(url) {
   const res = await fetch(url, { redirect: 'follow' });
   if (!res.ok) throw new Error(`${url} -> HTTP ${res.status}`);
@@ -51,42 +76,46 @@ async function download(url) {
 
 async function main() {
   const argv = process.argv.slice(2);
+  const os = argv.includes('--os') ? argv[argv.indexOf('--os') + 1] : 'win';
+  if (!NEEDED[os]) throw new Error(`Unknown --os ${os}`);
   const arch = argv.includes('--arch') ? argv[argv.indexOf('--arch') + 1] : 'x64';
-  if (!['x64', 'arm64'].includes(arch)) throw new Error(`Unknown --arch ${arch}`);
+  if (!['x64', 'arm64'].includes(arch) || (os === 'linux' && arch !== 'x64')) throw new Error(`Unsupported --arch ${arch} for ${os}`);
   const force = argv.includes('--force');
 
   const out = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'resources', 'bin');
-  const stamp = `${SCRCPY_VERSION} ${arch}`;
+  const needed = NEEDED[os];
+  const stamp = `${SCRCPY_VERSION} ${os} ${arch}`;
   const stampFile = path.join(out, '.fetched');
-  if (!force && fs.existsSync(stampFile) && fs.readFileSync(stampFile, 'utf8') === stamp && NEEDED.every((f) => fs.existsSync(path.join(out, f)))) {
+  if (!force && fs.existsSync(stampFile) && fs.readFileSync(stampFile, 'utf8') === stamp && needed.every((f) => fs.existsSync(path.join(out, f)))) {
     console.log(`scrcpy ${stamp} already in resources/bin`);
     return;
   }
 
-  const asset = `scrcpy-${arch === 'arm64' ? 'winarm64' : 'win64'}-v${SCRCPY_VERSION}.zip`;
+  const asset = os === 'linux'
+    ? `scrcpy-linux-x86_64-v${SCRCPY_VERSION}.tar.gz`
+    : `scrcpy-${arch === 'arm64' ? 'winarm64' : 'win64'}-v${SCRCPY_VERSION}.zip`;
   const base = `https://github.com/Genymobile/scrcpy/releases/download/v${SCRCPY_VERSION}/`;
   console.log(`Downloading ${asset} ...`);
-  const [zip, sums] = await Promise.all([download(base + asset), download(base + 'SHA256SUMS.txt')]);
+  const zip = await download(base + asset);
 
-  const line = sums.toString('utf8').split(/\r?\n/).find((l) => l.trim().endsWith(asset));
-  if (!line) throw new Error(`${asset} is not listed in SHA256SUMS.txt`);
-  const expected = line.trim().split(/\s+/)[0].toLowerCase();
+  const expected = SHA256[asset];
+  if (!expected) throw new Error(`No pinned SHA-256 for ${asset}`);
   const actual = crypto.createHash('sha256').update(zip).digest('hex');
   if (actual !== expected) throw new Error(`Checksum mismatch for ${asset}: expected ${expected}, got ${actual}`);
   console.log('Checksum OK');
 
-  const files = readZip(zip);
+  const files = os === 'linux' ? readTar(zlib.gunzipSync(zip)) : readZip(zip);
   fs.rmSync(out, { recursive: true, force: true });
   fs.mkdirSync(out, { recursive: true });
-  for (const want of NEEDED) {
+  for (const want of needed) {
     const entry = [...files.keys()].find((k) => k.split('/').at(-1) === want);
     if (!entry) throw new Error(`${want} is missing from ${asset}`);
-    fs.writeFileSync(path.join(out, want), files.get(entry)());
+    fs.writeFileSync(path.join(out, want), files.get(entry)(), { mode: 0o755 });  // adb must be executable on Linux
   }
   fs.writeFileSync(path.join(out, '.gitkeep'), '');  // keeps the folder in git while its contents stay ignored
   fs.writeFileSync(path.join(out, 'VERSION'), SCRCPY_VERSION + '\n');
   fs.writeFileSync(stampFile, stamp);
-  console.log(`Unpacked ${NEEDED.join(', ')} into resources/bin`);
+  console.log(`Unpacked ${needed.join(', ')} into resources/bin`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

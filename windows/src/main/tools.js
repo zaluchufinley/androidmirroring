@@ -51,7 +51,7 @@ function wellKnown(name) {
         path.join(home, 'scoop', 'shims'),
         'C:\\ProgramData\\chocolatey\\bin',
       ]
-    : ['/opt/homebrew/bin', '/usr/local/bin'];  // development on macOS
+    : ['/usr/bin', '/usr/local/bin', '/opt/homebrew/bin', path.join(home, 'Android', 'Sdk', 'platform-tools')];  // Linux, and development on macOS
   return firstExisting(dirs.filter(Boolean).map((d) => path.join(d, exe)));
 }
 
@@ -75,6 +75,7 @@ export function findServerJar() {
     process.env.AM_SCRCPY_SERVER,
     path.join(bundledDir(), 'scrcpy-server'),
     ...(beside ?? []),
+    '/usr/share/scrcpy/scrcpy-server',
     '/opt/homebrew/share/scrcpy/scrcpy-server',
     '/usr/local/share/scrcpy/scrcpy-server',
   ]);

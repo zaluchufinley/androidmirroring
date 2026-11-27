@@ -14,6 +14,10 @@ const root = path.join(here, '..', '..');
 app.setAppUserModelId('local.android-mirroring');
 app.setName('Android Mirroring');
 
+// Wayland apps cannot place their own window or read the pointer outside it, which the frameless window's drag and
+// zoom rely on. XWayland (and plain X11) allows both.
+if (process.platform === 'linux') app.commandLine.appendSwitch('ozone-platform', 'x11');
+
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {

@@ -31,7 +31,8 @@ export class Prefs {
     this.#data[key] = value;
     try {
       fs.mkdirSync(path.dirname(this.#file), { recursive: true });
-      fs.writeFileSync(this.#file, JSON.stringify(this.#data, null, 2));
+      fs.writeFileSync(this.#file + '.tmp', JSON.stringify(this.#data, null, 2));
+      fs.renameSync(this.#file + '.tmp', this.#file);  // a crash mid-write must not leave half a file
     } catch (e) {
       console.error('Could not save preferences:', e);
     }

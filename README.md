@@ -5,8 +5,8 @@
 <h1 align="center">Android Mirroring</h1>
 
 <p align="center">
-  A small, native macOS app to see and control your Android phone from your Mac.<br>
-  Over USB or Wi-Fi. No account, no cloud, no Electron.
+  See and control your Android phone from your Mac, Windows PC or Linux desktop.<br>
+  Over USB or Wi-Fi. No account, no cloud. Native on macOS (no Electron).
 </p>
 
 Android Mirroring is a pure AppKit front end for [scrcpy](https://github.com/Genymobile/scrcpy). It talks to your phone through `adb`, plays the video with AVFoundation and shows it in a floating, frameless window that feels like a Mac app: pair once with a code, then connect with one click.
@@ -18,7 +18,7 @@ Android Mirroring is a pure AppKit front end for [scrcpy](https://github.com/Gen
 - **Floating controls**: Home, App Switcher, Notifications and a "…" menu, in a bar that appears when you move the pointer to the top and fades away otherwise. Drag the bar to move the window.
 - **Phone Screen Off**: turn the phone's own screen off while mirroring keeps running (⌥⌘L). The screen is switched back on when you disconnect or quit.
 - **Sound where you want it**: keep audio on the phone, or play it on the Mac.
-- **Drop files onto the window**: `.apk` files are installed, everything else is copied to the phone's Downloads folder.
+- **Drop files onto the window**: `.apk` files are installed, everything else is copied to the phone's Downloads folder (a file with the same name is kept, the new one becomes `name (1)`).
 - **Keep on Top**: the window floats above other apps and follows you across Spaces (⌥⌘T).
 - **Resizable, aspect-locked window**: drag any edge or corner; Zoom In / Out / Actual Size / Fit from the View menu. Rotation is followed automatically.
 - **Respects reduced motion** and uses system accent colors, SF Symbols and Apple-style spacing.
@@ -39,11 +39,18 @@ Android Mirroring is a pure AppKit front end for [scrcpy](https://github.com/Gen
 
 ## Download
 
-Ready-made builds are on the [Releases](https://github.com/zaluchufinley/androidmirroring/releases) page: a `.dmg` for macOS (Apple Silicon and Intel) and `.exe` installers for Windows (x64 and ARM64). Neither is signed or notarized, so the first launch needs one extra click: on macOS right-click the app and choose **Open** (or `xattr -dr com.apple.quarantine "/Applications/Android Mirroring.app"`); on Windows choose **More info**, then **Run anyway**. Releases are built by GitHub Actions when a tag like `v1.0.0` is pushed.
+Ready-made builds are on the [Releases](https://github.com/zaluchufinley/androidmirroring/releases) page: a `.dmg` for macOS (Apple Silicon and Intel), `.exe` installers for Windows (x64 and ARM64), and an `.AppImage` plus an Arch `.pacman` package for Linux (x64). None is signed or notarized, so the first launch needs one extra click: on macOS right-click the app and choose **Open** (or `xattr -dr com.apple.quarantine "/Applications/Android Mirroring.app"`); on Windows choose **More info**, then **Run anyway**; on Linux make the AppImage executable with `chmod +x`. Releases are built by GitHub Actions when a tag like `v1.0.0` is pushed.
 
-## Windows
+## Windows and Linux
 
-There is also a Windows version in [`windows/`](windows/). It is a separate app (Electron and WebCodecs) that speaks the same scrcpy protocol and has the same features and look. It bundles `adb` and the scrcpy server, so there is nothing to install. The macOS app stays native and dependency-free. See [windows/README.md](windows/README.md) for building, testing and trying it in a VM.
+There is also a Windows and Linux version in [`windows/`](windows/). It is a separate app (Electron and WebCodecs) that speaks the same scrcpy protocol and has the same features and look. It bundles `adb` and the scrcpy server, so there is nothing to install. The macOS app stays native and dependency-free. See [windows/README.md](windows/README.md) for building, testing and trying it in a VM.
+
+### Linux (x64)
+
+- **Arch Linux and Arch-based distros:** install the `.pacman` package with `sudo pacman -U Android-Mirroring-<version>-x64.pacman`, or use the AppImage (it needs `fuse2`: `sudo pacman -S fuse2`).
+- **Bazzite** (and other Fedora Atomic / Universal Blue images): download the `.AppImage`, `chmod +x` it and run it, or add it with Gear Lever. Nothing is layered onto the system.
+- Wireless debugging works out of the box. For USB, install your distro's Android udev rules if the phone does not show up.
+- The AppImage is tested on Arch and Bazzite. Other distros may work, but Ubuntu 23.10 and newer blocks Electron's sandbox by default and needs `--no-sandbox`.
 
 ## Requirements
 
@@ -117,12 +124,14 @@ Sources/
   Transfer.swift  Dropped files: APK install and push to Downloads
 Resources/        App icon
 tools/            Icon generator (make_icon.swift)
+tests/swift/      Golden-byte tests for the Swift control protocol and file naming
+windows/          The Windows and Linux app (Electron), with its own tests and README
 build.sh          Builds "Android Mirroring.app"
 ```
 
 ## Contributing
 
-Issues and pull requests are welcome. The project is intentionally small and dependency-free: a handful of Swift files and a build script. Please keep it that way, and describe how you tested a change with a real phone.
+Issues and pull requests are welcome. The project is intentionally small and dependency-free: a handful of Swift files and a build script. Please keep it that way, and describe how you tested a change with a real phone. Run the tests before you open a pull request: `cd windows && npm ci && npm test` for the Windows/Linux app, and for the Swift side `swiftc -o /tmp/swifttests Sources/Core.swift Sources/Transfer.swift tests/swift/main.swift -framework AppKit -framework AVFoundation -framework CoreMedia && /tmp/swifttests`.
 
 ## Credits
 

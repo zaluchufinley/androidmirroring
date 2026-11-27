@@ -11,6 +11,7 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate, NS
     var videoSize = CGSize(width: 1080, height: 2400)
     var devices: [DeviceInfo] = []
     var polling = false
+    var streamTicks = 0
     var panelOpen = false  // our best guess whether the phone's notification panel is open
     var generation = 0  // bumps whenever a connect attempt is cancelled or replaced
     var restoreWidth: CGFloat?
@@ -216,6 +217,8 @@ final class AppController: NSObject, NSApplicationDelegate, NSWindowDelegate, NS
     // MARK: device discovery
 
     func tick() {
+        // While streaming, a dropped phone also ends the stream itself, so look only every third tick.
+        if root.mode == .streaming { streamTicks += 1; if streamTicks % 3 != 0 { return } }
         guard !polling, let adb = Tools.adb else { return }
         polling = true
         let gen = generation  // a poll that began before a session started must not judge that session

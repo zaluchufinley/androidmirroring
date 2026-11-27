@@ -36,6 +36,7 @@ export class AppController {
     this.animating = false;
     this.dragTimer = null;
     this.pollTimer = null;
+    this.streamTicks = 0;
   }
 
   // MARK: plumbing
@@ -184,6 +185,8 @@ export class AppController {
   // MARK: device discovery
 
   tick() {
+    // While streaming, a dropped phone also ends the stream itself, so look only every third tick.
+    if (this.mode === 'streaming' && ++this.streamTicks % 3 !== 0) return;
     const adb = findAdb();
     if (this.polling || !adb) return;
     this.polling = true;
@@ -254,6 +257,7 @@ export class AppController {
   // MARK: session
 
   startSession(serial) {
+    this.session?.stop();  // a second click before the screen locked must not leave the first session running
     this.generation++;
     this.panelOpen = false;
     this.busy('Connecting…');

@@ -30,7 +30,7 @@ enum Transfer {
                         r.failures.append("\(name): \(reason(out.out))")
                     }
                 } else {
-                    let out = shell(adb, ["-s", serial, "push", url.path, "/sdcard/Download/"])
+                    let out = shell(adb, ["-s", serial, "push", url.path, "/sdcard/Download/" + freeName(adb: adb, serial: serial, name: name)])
                     if out.status == 0 {
                         r.sentFiles += 1
                     } else {
@@ -40,6 +40,28 @@ enum Transfer {
             }
             DispatchQueue.main.async { completion(r) }
         }
+    }
+
+    /// "a.pdf" -> "a (1).pdf", "notes" -> "notes (2)": the name to try when the phone already has the file.
+    static func numberedName(_ name: String, _ n: Int) -> String {
+        if n == 0 { return name }
+        let ext = (name as NSString).pathExtension
+        if ext.isEmpty { return "\(name) (\(n))" }
+        return "\(name.dropLast(ext.count + 1)) (\(n)).\(ext)"
+    }
+
+    /// The phone's shell reads a file name, so quote it: '...' with each ' written as '\''
+    private static func quote(_ s: String) -> String { "'" + s.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+
+    /// The first name in Downloads the phone does not have yet, so a drop never overwrites an existing file.
+    private static func freeName(adb: String, serial: String, name: String) -> String {
+        for n in 0..<100 {
+            let candidate = numberedName(name, n)
+            let r = shell(adb, ["-s", serial, "shell", "test -e " + quote("/sdcard/Download/" + candidate)])
+            if r.status == 1 { return candidate }  // exit 1 = "no such file"; anything else (adb trouble) falls through to a plain push
+            if r.status != 0 { break }
+        }
+        return name
     }
 
     /// The last meaningful line adb printed, shortened.
